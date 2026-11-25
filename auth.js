@@ -37,6 +37,7 @@ function start() {
   const redirectTo = new URL(pageUrl.pathname, pageUrl.origin).href;
   let user = null;
   let loadRequest = null;
+  let plannerUrl = null;
   let initialSessionReceived = false;
   let signingOut = false;
 
@@ -45,7 +46,11 @@ function start() {
     loadRequest = null;
     planner.hidden = true;
     login.hidden = false;
-    frame.removeAttribute("srcdoc");
+    frame.removeAttribute("src");
+    if (plannerUrl) {
+      URL.revokeObjectURL(plannerUrl);
+      plannerUrl = null;
+    }
     delete frame.dataset.plannerUser;
     sessionEmail.textContent = "";
   }
@@ -62,10 +67,11 @@ function start() {
       const { data, error } = await client.storage.from("pecksland-private")
         .download("planner.html", {}, { cache: "no-store", signal: request.signal });
       if (error) throw error;
-      const html = await data.text();
       if (request.signal.aborted) return;
+      // Give the planner its own URL so its hash links stay inside the frame.
+      plannerUrl = URL.createObjectURL(new Blob([data], { type: "text/html;charset=utf-8" }));
       frame.dataset.plannerUser = account.id;
-      frame.srcdoc = html;
+      frame.src = plannerUrl;
       sessionEmail.textContent = account.email || "Signed in";
       planner.hidden = false;
       login.hidden = true;
